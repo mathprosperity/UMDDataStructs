@@ -1,0 +1,1 @@
+- Copy constructors and equals() method for symbol tables.
