@@ -1,8 +1,9 @@
 package datastructures.trees;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
-import datastructures.lists.*;
 import datastructures.queues.*;
 
 /**
@@ -36,13 +37,10 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 	 *
 	 * @param <T2> The Comparable type held by the object.
 	 */
-	@SuppressWarnings("unchecked")
 	private class BTreeNode<T2 extends Comparable<T2>>{
 
-		int numChildren;
-		int numKeys;
-		T2[] keys;
-		BTreeNode<T2>[] children;
+		ArrayList<T2> keys;
+		ArrayList<BTreeNode<T2>> children;
 		private final static int KEY_NOT_FOUND = -1;
 
 		/**
@@ -53,11 +51,11 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 		 */
 		BTreeNode(T2 startingKey) {
 
-			keys = (T2[]) new Object[M]; // One too many
-			children = (BTreeNode<T2>[]) new Object[M + 1]; // One too many
-			numChildren = 0;
-			numKeys = 1;
-			keys[0] = startingKey;
+			keys = new ArrayList<T2>(M); // One too many
+			children = new ArrayList<BTreeNode<T2>>(M + 1); // One too many
+			keys.add(startingKey);
+			keys.trimToSize();
+			children.trimToSize();
 		}
 
 		/**
@@ -65,10 +63,10 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 		 * space for a new node.
 		 */
 		BTreeNode(){
-			keys = (T2[]) new Object[M];
-			children = (BTreeNode<T2>[]) new Object[M + 1];
-			numChildren = 0;
-			numKeys = 0;
+			keys = new ArrayList<T2>(M); // One too many
+			children = new ArrayList<BTreeNode<T2>>(M + 1); // One too many
+			keys.trimToSize();
+			children.trimToSize();
 		}
 
 		/**
@@ -77,29 +75,43 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 		 * @return true if the node is a leaf of the tree, i.e it does
 		 * 	not have any children.
 		 */
-		boolean isLeaf(){ return numChildren == 0;}
+		boolean isLeaf(){ return children.isEmpty();}
 
 		/**
 		 * Returns true if the current node is full, i.e it cannot take
 		 * any more keys.
 		 * 
-		 * @return true if the number of children in the node is equal
-		 * to the node width M.
+		 * @return true if the number of keys in the node exceeds the maximum of M - 1. 
 		 */
-		boolean overFlows(){ return numKeys == M - 1; } // M - 1 keys max per node
+		boolean overFlows(){ return keys.size() > M - 1; } // M - 1 keys max per node
 
 		/**
 		 * Returns true if the current node underflows, i.e it contains less than
 		 * floor(M/2) keys.
-		 * @return true if the node has less than floor(M/2) keys.
+		 * @return true if the node has less than ceil(M/2) - 1 keys.
 		 */
-		boolean underFlows() { return numKeys < M/2; }
+		boolean underFlows() { return (M % 2 == 0)?  keys.size() < M/2 - 1 : keys.size() < M / 2; }
+
+		/**
+		 * Returns true if the node is full, i.e it contains exactly M - 1 keys. Used by key
+		 * rotations to check whether it is possible to rotate a key to the current node.
+		 * @return true if the number of keys in the node is exactly M - 1.
+		 */
+		boolean isFull() { return keys.size() == M - 1; }
+		
+		/**
+		 * Returns true if the node is at its minimum capacity. Used by the rotation methods
+		 * to determine whether a left or right rotation from the current node is possible.
+		 * 
+		 * @return true if the node has exactly ceil(M/2) - 1 keys.
+		 */
+		boolean minCapacity(){ return (M % 2 == 0)?  keys.size() == M/2 - 1 : keys.size() == M / 2;}
 
 		/**
 		 * Return the middle key in the array of keys.
 		 * @return The key at keys[numKeys / 2].
 		 */
-		T2 middleKey(){ return keys[numKeys / 2]; }
+		T2 middleKey(){ return keys.get(keys.size() / 2); }
 
 		/**
 		 * Recursively searches for an element in the B-Tree.
@@ -108,7 +120,7 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 		 * @return A reference to the element when found, or null if it is not found.
 		 */
 		T2 search(T2 element){
-			int start = 0, end = numKeys - 1;
+			int start = 0, end = keys.size() - 1;
 			// This while loop will perform binary
 			// search to find the key in the current node.
 			// In the worst case scenario, after "numKey" - many 
@@ -117,9 +129,9 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 			// case, a recursive call may be due.
 			while(start < end){
 				int mid = start + (end - start) / 2;
-				int cmp = element.compareTo(keys[mid]); 
+				int cmp = element.compareTo(keys.get(mid)); 
 				if(cmp == 0)
-					return keys[mid];
+					return keys.get(mid);
 				else if(cmp < 0)
 					end = mid - 1; // search left subarray
 				else
@@ -131,19 +143,21 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 			// If not, we need to check if the relevant child node is null,
 			// in which case we return null. If it is not null, we apply
 			// a recursive call to that child node.
-			int cmp = element.compareTo(keys[start]);
+			int cmp = element.compareTo(keys.get(start));
 			if(cmp == 0)
-				return keys[start];
+				return keys.get(start);
 			else if(cmp < 0)
-				if(children[start] == null) // j'th child contains values less than j'th key
+				try {
+					return children.get(start).search(element);
+				}catch(IndexOutOfBoundsException exc){ // If the element at start is larger than or equal to the arraylist's size
 					return null;
-				else
-					return children[start].search(element);
+				}
 			else
-				if(children[start + 1] == null) // (j + 1)'th child contains values larger than j'th key
+				try {
+					return children.get(start + 1).search(element);
+				} catch(IndexOutOfBoundsException exc){ // Same
 					return null;
-				else
-					return children[start + 1].search(element);
+				}
 		}
 
 		/**
@@ -158,21 +172,18 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 			// in the appropriate spot by shifting keys around as necessary.
 			if(isLeaf()){
 				int newElIndex = findKeyIndex(element);
-				shiftRight(newElIndex, numKeys, keys);
-				keys[newElIndex] = element;
-				numKeys++;
-
+				keys.add(newElIndex, element);
 			} else {
 				// In the subsequent context, findKeyIndex(T element)
 				// will actually return an index which is suitable
 				// for recursing into a child node.
 				int childIndex = findKeyIndex(element);
-				children[childIndex].add(element);
+				children.get(childIndex).add(element);
 				// If the addition caused the child to overflow, we 
 				// first check to see whether we can perform a left
 				// or right rotation. If we can't do either, we need
 				// to perform a node split.
-				if(children[childIndex].overFlows())
+				if(children.get(childIndex).overFlows())
 					if(canRotateKeyLeft(childIndex))
 						rotateKeyLeft(childIndex);
 					else if(canRotateKeyRight(childIndex))
@@ -180,16 +191,22 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 					else
 						splitChild(childIndex);
 			}
+			keys.trimToSize();
+			children.trimToSize();
 		}
 
-		// The following helper method is used by add().
-		// It performs binary search to find the appropriate 
-		// index to add the element to.
+		/* The following helper method is used by add().
+		 * It performs binary search to find the appropriate 
+		 * index to add the element to. Whether the key was found
+		 * or not in the array, we always find an appropriate index
+		 * to insert they new key to.
+		 */
+
 		private int findKeyIndex(T2 element){
-			int start = 0, end = numKeys - 1;
+			int start = 0, end = keys.size() - 1;
 			while(start < end){ 
 				int mid = start + (end - start) / 2;
-				int cmp = element.compareTo(keys[mid]); 
+				int cmp = element.compareTo(keys.get(mid)); 
 				if(cmp == 0)
 					return mid + 1; // done			
 				else if(cmp < 0)
@@ -197,110 +214,104 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 				else
 					start = mid + 1; // search right subarray
 			}
-			if(element.compareTo(keys[start]) < 0)
+			if(element.compareTo(keys.get(start)) < 0)
 				return start;
 			else
 				return start + 1;
 		}
 
+		/* Split the child pointed to by "childIndex", making
+		 * the child at "childIndex" point to its lower half and the index at "childIndex+1"
+		 * point to its upper half. The two new nodes will be separated by the middle key
+		 * of the old child node.
+		 */
 		private void splitChild(int childIndex){
-			T2 midChildKey = children[childIndex].middleKey();
-			shiftRight(childIndex, numKeys, keys);
-			shiftRight(childIndex + 1, numChildren, children);
-			keys[childIndex] = midChildKey;
-			children[childIndex] = getSmallerHalf(children[childIndex]);
-			children[childIndex + 1] = getLargerHalf(children[childIndex]);
-			numKeys++;
-			numChildren++;
+			T2 midChildKey = children.get(childIndex).middleKey();
+			//shiftRight(childIndex, numKeys, keys); // Make space for a new key and a new child in the current node.
+			//shiftRight(childIndex + 1, numChildren, children);
+			keys.add(childIndex, midChildKey);
+			BTreeNode<T2> oldChildNode = children.get(childIndex);
+			children.remove(childIndex); // Remove the previous node
+			children.add(childIndex, oldChildNode.getSmallerHalf()); // And add the two new ones
+			children.add(childIndex + 1, oldChildNode.getLargerHalf());
 		}
 
-		private void shiftRight(int start, int last, Object[] array){
-			for(int i = last + 1; i > start; i--)
-				array[i] = array[i - 1];
-			array[start] = null;
-		}
-
-		private void shiftLeft(int start, int last, Object[] array){
-			for(int i = start; i < last; i++)
-				array[i] = array[i + 1];
-			array[last] = null;
-		}
-
-		private void shiftAllLeft(){
-			shiftLeft(0, numChildren, children);
-			shiftLeft(0, numKeys, keys);
-		}
-
-		private void shiftAllRight(){
-			shiftRight(0, numChildren, children);
-			shiftRight(0, numKeys, keys);
-		}
-
+		/*
+		 * Ask the question of whether we can rotate a key to a left sibling.
+		 */
 		private boolean canRotateKeyLeft(int pivotChild){
-			return (pivotChild > 0) && !children[pivotChild - 1].overFlows();
+			return (pivotChild > 0) && !children.get(pivotChild).minCapacity()  
+					&& !children.get(pivotChild - 1).isFull();
 		}
 
+		/*
+		 * Ask the question of whether we can rotate a key to a right sibling.
+		 */
 		private boolean canRotateKeyRight(int pivotChild){
-			return (pivotChild < numChildren) && !children[pivotChild + 1].overFlows();
+			return (pivotChild < children.size() - 1) && !children.get(pivotChild).minCapacity() 
+					&& !children.get(pivotChild + 1).isFull();
 		}
 
-		private void rotateKeyRight(int sourceChild){
-			// key j splits children j and j + 1
-			int numChildrenInSource = children[sourceChild].numChildren;
-			int numKeysInSource = children[sourceChild].numKeys;
-			children[sourceChild + 1].shiftAllRight();
-			children[sourceChild + 1].keys[0] = keys[sourceChild];
-			keys[sourceChild] = children[sourceChild].keys[numKeysInSource - 1];
-			children[sourceChild + 1].children[0] = children[sourceChild].children[numChildrenInSource - 1];
-			children[sourceChild + 1].numChildren++;
-			children[sourceChild + 1].numKeys++;
-			children[sourceChild].keys[numKeysInSource - 1] = null;
-			children[sourceChild].children[numChildrenInSource - 1] = null;
-			children[sourceChild].numChildren--;
-			children[sourceChild].numKeys--;			
-		}
-
+		/* Actually rotate the key to the left. Key j - 1 splits children j - 1 and j.*/
 		private void rotateKeyLeft(int sourceChild){
-			// key j-1 splits children j-1 and j
-			int numChildrenInTarget = children[sourceChild - 1].numChildren;
-			int numKeysInTarget = children[sourceChild - 1].numKeys;
-			children[sourceChild - 1].keys[numKeysInTarget] = keys[sourceChild - 1]; // add one key
-			keys[sourceChild - 1] = children[sourceChild].keys[0];
-			children[sourceChild - 1].children[numChildrenInTarget] = children[sourceChild].children[0];
-			children[sourceChild].shiftAllLeft();
-			children[sourceChild].numChildren--;
-			children[sourceChild].numKeys--;
-			children[sourceChild - 1].numChildren++;
-			children[sourceChild - 1].numKeys++;
+			ArrayList<T2> rightKeys = children.get(sourceChild).keys,
+					leftKeys = children.get(sourceChild - 1).keys;
+			ArrayList<BTreeNode<T2>> rightChildren = children.get(sourceChild).children,
+					leftChildren = children.get(sourceChild - 1).children;
+			T2 currKey = keys.remove(sourceChild - 1);
+			T2 rightKey = rightKeys.remove(0);
+			leftKeys.add(currKey);
+			keys.add(sourceChild -1, rightKey);
+			if(rightChildren.size() > 0)
+				leftChildren.add(rightChildren.remove(0));
 		}
 
-		private BTreeNode<T2> getSmallerHalf(BTreeNode<T2> source){
+		/* Actually rotate the key to the right. key j splits children j and j + 1 */
+		private void rotateKeyRight(int sourceChild){
+			ArrayList<T2> rightKeys = children.get(sourceChild + 1).keys,
+					leftKeys = children.get(sourceChild).keys;
+			ArrayList<BTreeNode<T2>> rightChildren = children.get(sourceChild + 1).children,
+					leftChildren = children.get(sourceChild).children;
+			T2 currKey = keys.remove(sourceChild);
+			T2 leftKey = leftKeys.remove(leftKeys.size() - 1);
+			rightKeys.add(0, currKey);
+			keys.add(sourceChild, leftKey);
+			if(leftChildren.size() > 0)
+				rightChildren.add(0, leftChildren.remove(leftChildren.size() - 1));
+
+		}
+		/* Retrieve the bottom half portion of the current B-Tree node. 
+		 * Neither the bottom nor the top half will contain the middle key 
+		 * of the old node, since that has already been retrieved by the
+		 * caller method, by calling middleKey().
+		 */
+		private BTreeNode<T2> getSmallerHalf(){
 			BTreeNode<T2> retVal = new BTreeNode<T2>();
-			int i;
-			for(i = 0; i < source.keys.length / 2; i++){
-				retVal.keys[i] = source.keys[i];
-				retVal.children[i] = source.children[i];
+			List<T2> halfKeys = keys.subList(0, keys.size() / 2);
+			retVal.keys.addAll(halfKeys);
+			if(!children.isEmpty()){
+				List<BTreeNode<T2>> halfChildren = children.subList(0, (children.size() %2 == 1) ? children.size() / 2 + 1 : children.size() / 2);
+				retVal.children.addAll(halfChildren);
 			}
-			retVal.children[i] = source.children[i]; // copy that extra child
-			retVal.numKeys = i;
-			retVal.numChildren = i + 1;
 			return retVal;
 		}
 
-		private BTreeNode<T2> getLargerHalf(BTreeNode<T2> source){
+		/* Same as above, but retrieving the top half portion of a node. */
+		private BTreeNode<T2> getLargerHalf(){
 			BTreeNode<T2> retVal = new BTreeNode<T2>();
-			int keyIndex = 0, childIndex = 0; // Just because I'm lazy
-			int i;
-			for(i = source.keys.length / 2 + 1; i < source.numKeys; i++){
-				retVal.keys[keyIndex++] = source.keys[i];
-				retVal.children[childIndex++] = source.children[i];
+			List<T2> halfKeys = keys.subList(keys.size() / 2 + 1, keys.size());
+			retVal.keys.addAll(halfKeys);
+			if(children.size() > 2){
+				List<BTreeNode<T2>> halfChildren = children.subList((children.size() %2 == 1) ? children.size() / 2 + 1 : children.size() / 2, children.size());
+				retVal.children.addAll(halfChildren);
 			}
-			retVal.children[childIndex++] = source.children[i]; // copy that extra child
-			retVal.numKeys = keyIndex;
-			retVal.numChildren = childIndex;
 			return retVal;
 		}
 
+		/* Removes an element from the B-Tree. Performs rotations
+		 * and node mergins as necessary to preserve the invariants
+		 * of the data structure.
+		 */
 		T2 remove(T2 element){
 			int matchIndex;
 			// If the node is a leaf, perform binary search for the element.
@@ -310,53 +321,63 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 				if(matchIndex == KEY_NOT_FOUND)
 					return null; // Element not in tree.
 				else{
-					shiftLeft(matchIndex, numKeys, keys);
-					numKeys--;
-					return element;
+					T2 retVal = keys.remove(matchIndex);
+					keys.trimToSize();
+					return retVal;
 				}
 			}
-			// If the key to be found is in the current node, we need to
-			// find its inorder successor, replace the key with the inorder
-			// successor, and call remove(inorder_successor) for the appropriate subtree,
-			// taking care of splits and merges appropriately.
-			T2 retVal, elToRemove = element;
+			/* If the key to be found is in the current non-leaf node, we need to
+			 * find its inorder successor, replace the key with the inorder
+			 * successor, and call remove(inorder_successor) for the appropriate subtree,
+			 * taking care of splits and merges appropriately. 
+			 */
+			T2 retVal = null, elToRemove = element;
 			matchIndex = searchForElement(element); // Searches for the element in the current node.
-			if(matchIndex != KEY_NOT_FOUND){
-				T2 inSucc = children[matchIndex + 1].getInorderSuccessor();
-				keys[matchIndex] = inSucc;
-				elToRemove = inSucc;
+			if(matchIndex != KEY_NOT_FOUND){ // Found the element in the current node.
+				T2 inSucc = children.get(matchIndex + 1).getInorderSuccessor(); // The inorder successor will be the smallest key in the right subtree of the key we found.
+				keys.set(matchIndex, inSucc);
+				elToRemove = inSucc; // We will now need to remove the inorder successor, so we change our removal target.
+				retVal = element;
 			}
-			// If, on the other hand, it is not in the current node, we simply find
-			// the appropriate subtree to recurse to, and we still take care of
-			// splits and merges as appropriate.
-			int childIndex = findKeyIndex(element); // Finds the appropriate child index to recurse to.
-			retVal = children[childIndex].remove(elToRemove); // Either the original element or the inorder successor
-			if(retVal == null) // Did not find the key. This is only possible when elToRemove == element (an inorder successor is guaranteed to exist)
+			/* If, on the other hand, it is not in the current node, we simply find
+			 * the appropriate subtree to recurse to, and we still take care of
+			 * splits and merges as appropriate.
+			 */
+			int childIndex = findKeyIndex(elToRemove); // Finds the appropriate child index to recurse to for either the original element or the inorder successor.
+			T2 result = children.get(childIndex).remove(elToRemove); 
+			if(result == null) // Did not find the key. This is only possible when elToRemove == element (an inorder successor is guaranteed to exist)
 				return null;
-			// Did our removal make some node underflow?
-			if(children[childIndex].underFlows()){
+			else if(retVal == null) // Found the key down the tree, not on the current node
+				retVal = result;
+			// Did our removal make the child node underflow?
+			if(children.get(childIndex).underFlows()){
 				// See whether we can rotate a key from either
 				// the left or the right sibling.
-				if(childIndex > 0){
-					if(canRotateKeyRight(childIndex - 1))
+				boolean rotatedRight = false, rotatedLeft = false;
+				if(childIndex > 0)
+					if((rotatedRight = canRotateKeyRight(childIndex - 1)) == true)
 						rotateKeyRight(childIndex -1);
-				}
-				else if(childIndex < numChildren - 1){
-					if(canRotateKeyLeft(childIndex + 1))
+				if(childIndex < children.size() - 1)
+					if((rotatedLeft = canRotateKeyLeft(childIndex + 1)) == true)
 						rotateKeyLeft(childIndex + 1);
-				} else  // Node merging required
-					mergeNodes(childIndex);
+				if(!rotatedRight && !rotatedLeft) // If no rotations occurred, only option is to merge the nodes.
+					if(childIndex > 0)
+						mergeNodes(childIndex - 1, childIndex);
+					else
+						mergeNodes(childIndex, childIndex + 1);
 			}
+			keys.trimToSize();
+			children.trimToSize();
 			return retVal;
 		}
 
 		// Search for a key in a leaf node through binary search.
 		private int searchForElement(T2 element){
-			int start = 0, end = numKeys;
+			int start = 0, end = keys.size() - 1;
 			int matchIndex = KEY_NOT_FOUND;
 			while(start <= end && matchIndex == KEY_NOT_FOUND){
 				int mid = start + (end - start) / 2;
-				int cmp = element.compareTo(keys[mid]); 
+				int cmp = element.compareTo(keys.get(mid)); 
 				if(cmp == 0)
 					matchIndex = mid;
 				else if(cmp < 0)
@@ -371,87 +392,72 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 		private T2 getInorderSuccessor(){
 			BTreeNode<T2> current = this;
 			while(!current.isLeaf())
-				current = current.children[0];
-			return current.keys[0];			
+				current = current.children.get(0);
+			return current.keys.get(0);			
 		}
 
-		// Merge the nodes at indices "childIndex" and "childIndex -1",
-		// creating a single node which contains the keys of the node at
-		// childIndex -1, followed by the key at keys[childIndex -1], and
-		// then followed by the keys of the child at "childIndex".
-		// The new node will have a total number of keys equal to the sum of
-		// the two previous' nodes numbers of keys plus 1, and a number of children
-		// equal to the sum of the two previous nodes' numbers of children. It will
-		// be pointed to by the reference "children[childIndex - 1]", and the reference
-		// children[childIndex] will be nullified, triggering garbage collection.
-		private void mergeNodes(int childIndex){
+		/* Merge the nodes at indices "childIndex" and "childIndex -1",
+		 * creating a single node which contains the keys of the node at
+		 * childIndex -1, followed by the key at keys[childIndex -1], and
+		 * then followed by the keys of the child at "childIndex". Children
+		 * are copied as necessary. The new node  will be pointed to by the 
+		 * reference "children[firstChild]".
+		 */
+		private void mergeNodes(int firstChild, int secondChild){
 			BTreeNode<T2> mergedNode = new BTreeNode<T2>();
-			int i;
-			for(i = 0; i < children[childIndex - 1].numKeys; i++){
-				mergedNode.keys[i] = children[childIndex - 1].keys[i];
-				mergedNode.children[i] = children[childIndex - 1].children[i];
-			}
-			mergedNode.keys[i] = keys[childIndex - 1];
-			mergedNode.children[i] = children[childIndex - 1].children[i]; // last child from previous node
-			i++;
-			for(int j = 0; j < children[childIndex].numKeys; j++){
-				mergedNode.keys[i] = children[childIndex].keys[j];
-				mergedNode.children[i++] = children[childIndex].children[j];
-			}
-			mergedNode.numChildren = children[childIndex - 1].numChildren + children[childIndex].numChildren;
-			mergedNode.numKeys = children[childIndex - 1].numKeys + 1 + children[childIndex].numKeys;
-			children[childIndex] = null;
-			children[childIndex - 1] = mergedNode;
-			this.numKeys--;
-			this.numChildren--;
+			mergedNode.keys.addAll(children.get(firstChild).keys);
+			mergedNode.keys.add(keys.remove(firstChild));
+			mergedNode.keys.addAll(children.get(secondChild).keys);
+			mergedNode.children.addAll(children.get(firstChild).children);
+			mergedNode.children.addAll(children.get(secondChild).children);
+			children.set(firstChild, mergedNode);
+			children.remove(secondChild); // remove the old, useless child.
 		}
 
 		/* Methods for retrieving minimum and maximum keys. They are pretty straightforward:
 		 * To get the minimum (maximum) key, we need to traverse the BTree until the leftmost (rightmost)
 		 * key. We implement both methods iteratively.
 		 */
-		
 		T2 getMin(){
 			BTreeNode<T2> current = this;
 			while(!current.isLeaf())
-				current = current.children[0];
-			return current.keys[0]; 
+				current = current.children.get(0);
+			return current.keys.get(0); 
 		}
-		
+
 		T2 getMax(){
 			BTreeNode<T2> current = this;
 			while(!current.isLeaf())
-				current = current.children[numChildren - 1];
-			return current.keys[numKeys - 1]; 
+				current = current.children.get(current.children.size() - 1);
+			return current.keys.get(current.keys.size() - 1); 
 		}
-		
-		/* The last methods that we need to take care of for the BTreeNode class
+
+		/* The last methods that we need to implement for the BTreeNode class
 		 * are the ones taking care of the various tree traversals. Those are 
 		 * trivial to implement. We do not implement inorder traversals,
 		 * because these have been defined to be exactly the same as pre-order
 		 * traversals.
 		 */
-
-		void preOrder(List<T2> list){
+		void preOrder(ArrayList<T2> list){
 			int i;
-			for(i = 0; i < numKeys; i++){
-				list.pushBack(keys[i]);
-				children[i].preOrder(list);
+			for(i = 0; i < keys.size(); i++){
+				list.add(keys.get(i));
+				children.get(i).preOrder(list);
 			}
-			children[i].preOrder(list);
+			children.get(i).preOrder(list);
 		}
 
 
-		void postOrder(List<T2> list){
+		void postOrder(ArrayList<T2> list){
 			int i;
-			for(i = 0; i < numKeys; i++){
-				children[i].postOrder(list);
-				list.pushBack(keys[i]);
+			for(i = 0; i < keys.size(); i++){
+				children.get(i).postOrder(list);
+				list.add(keys.get(i));
 			}
-			children[i].postOrder(list);
+			children.get(i).postOrder(list);
 		}
 
-		void levelOrder(List<T2> list){
+		void levelOrder(ArrayList<T2> list){
 			Queue<BTreeNode<T2>> queue = new LinkedQueue<BTreeNode<T2>>();
 			queue.enqueue(this);
 			while(!queue.isEmpty()){
@@ -461,8 +467,8 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 				}catch(EmptyQueueException exc){
 					// dummy
 				}
-				for(T2 key : currNode.keys)
-					list.pushBack(key);
+				for(T2 key : currNode.keys) // linear order
+					list.add(key);
 				for(BTreeNode<T2> child: currNode.children)
 					queue.enqueue(child);
 			}
@@ -479,14 +485,13 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 	private int M;
 	private BTreeNode<T> root;
 	private int count;
+	private int treeHeight; 
 
 	/**
 	 * Default constructor creates a 5-tree
 	 */
 	public BTree(){
-		M = 5; 
-		root = null;
-		count = 0;
+		this(5);
 	} 
 
 	/**
@@ -496,7 +501,55 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 	public BTree(int M) { 
 		this.M = M;
 		root = null;
-		count = 0;
+		treeHeight = count = 0;
+	}
+
+	/**
+	 * Copy constructor. The current B-Tree will be created based on the
+	 * contents of <tt>other</tt>. Note that this does not mean that the
+	 * current B-Tree will be a carbon copy of <tt>other</tt> because the structure
+	 * of B-Trees is dependent on the sequence of insertions. The size and height of the
+	 * tree will of course end up being the same as <tt>other</tt>'s. 
+	 * @param other
+	 */
+	public BTree(BTree<T> other){
+		M = other.M;
+		treeHeight = other.treeHeight;
+		for(T el : other)
+			add(el);
+	}
+
+	/**
+	 * Standard equals() method. Returns true if the two objects are instance-equal
+	 * @param other The {@link: Object} to compare the current object to. 
+	 * @return true if the <tt>Object</tt> provided as instance-equal to the current object.
+	 */
+	@SuppressWarnings("unchecked")
+	public boolean equals(Object other){
+		if(other == null || other.getClass() != this.getClass())
+			return false;
+		BTree<T> ocasted = null;
+		try {
+			ocasted = (BTree<T>)other;
+		} catch(ClassCastException exc){
+			return false;
+		}
+		if(size() != ocasted.size() || this.treeHeight != ocasted.treeHeight || M != ocasted.M)
+			return false;
+		Iterator<T> thisLOrder, otherLOrder;
+		try {
+			thisLOrder = levelOrder();
+			otherLOrder = ocasted.levelOrder();
+		} catch (EmptyTreeException e) {
+			return false;
+		}
+		while(thisLOrder.hasNext()){
+			if(!otherLOrder.hasNext())
+				return false;
+			if(!thisLOrder.next().equals(otherLOrder.next()))
+				return false;
+		}
+		return true;
 	}
 
 	public boolean contains(T element){
@@ -536,6 +589,14 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 		return count;
 	}
 
+	/**
+	 * Queries the B-Tree for its height.
+	 * @return The height of the B-Tree.
+	 */
+	public int height(){
+		return treeHeight;
+	}
+
 	@Override
 	public T find(T element) throws EmptyTreeException {
 		if(root == null)
@@ -549,12 +610,16 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 	 * @param element The element to add.
 	 */
 	public void add(T element){
-		if(root == null)
+		if(root == null){
 			root = new BTreeNode<T>(element);
+			treeHeight = 1;
+		}
 		else{
 			root.add(element);
-			if(root.overFlows())
+			if(root.overFlows()){
 				root = splitRoot(root);
+				treeHeight++;
+			}
 		}
 		count++;
 	}
@@ -562,8 +627,8 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 	private BTreeNode<T> splitRoot(BTreeNode<T> oldRoot){
 		T midRootKey = oldRoot.middleKey();
 		BTreeNode<T> newRoot = new BTreeNode<T>(midRootKey);
-		newRoot.children[0]= oldRoot.getSmallerHalf(oldRoot);
-		newRoot.children[1] = oldRoot.getLargerHalf(oldRoot);
+		newRoot.children.add(oldRoot.getSmallerHalf());
+		newRoot.children.add(oldRoot.getLargerHalf());
 		return newRoot;
 	}
 
@@ -576,7 +641,13 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 	public T remove(T element){
 		if(element == null || root == null)
 			return null;
-		return root.remove(element);
+		T retVal = root.remove(element);
+		if(root.keys.isEmpty() && !root.children.isEmpty()){ // root underflow
+			root = root.children.get(0); // just change the root
+			treeHeight--;
+		}
+		count--;
+		return retVal;
 	}
 
 	/**
@@ -591,7 +662,7 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 	public Iterator<T> preorder() throws EmptyTreeException {
 		if(isEmpty())
 			throw new EmptyTreeException("preorder(): tree is empty!");
-		ArrayListBasedList<T> list = new ArrayListBasedList<T>();
+		ArrayList<T> list = new ArrayList<T>();
 		root.preOrder(list);
 		return list.iterator();
 	}
@@ -616,7 +687,7 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 	public Iterator<T> postOrder() throws EmptyTreeException {
 		if(isEmpty())
 			throw new EmptyTreeException("postOrder(): tree is empty!");
-		ArrayListBasedList<T> list = new ArrayListBasedList<T>();
+		ArrayList<T> list = new ArrayList<T>();
 		root.postOrder(list);
 		return list.iterator();
 	}
@@ -632,7 +703,7 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 	public Iterator<T> levelOrder() throws EmptyTreeException {
 		if(isEmpty())
 			throw new EmptyTreeException("levelOrder(): tree is empty!");
-		ArrayListBasedList<T> list = new ArrayListBasedList<T>();
+		ArrayList<T> list = new ArrayList<T>();
 		root.levelOrder(list);
 		return list.iterator();
 	}
@@ -655,6 +726,7 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 	public void clear() {
 		root = null;
 		count = 0;
+		treeHeight = 0;
 	}
 
 }
