@@ -32,7 +32,8 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 	 * nodes, the presence of bogus references will make the relevant operations
 	 * a lot faster. Therefore, a user of this class should know that an approximate
 	 * 8*N byte overhead is to be expected, where N is the number of nodes
-	 * in the BTree.
+	 * in the BTree. Java ArrayLists are used to implement the key and children arrays,
+	 * for code readability and efficiency purposes.
 	 * @author Jason Filippou (jasonfil@cs.umd.edu)
 	 *
 	 * @param <T2> The Comparable type held by the object.
