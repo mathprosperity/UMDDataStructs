@@ -2,6 +2,7 @@ package datastructures.trees;
 
 import java.util.Iterator;
 import java.util.ArrayList; // We will use an ArrayList in our pre/in/post/level-order traversals.
+
 import datastructures.queues.*; // Needed for BFS
 
 /**
@@ -145,9 +146,8 @@ public class LinkedBinarySearchTree<T extends Comparable<T>>  implements BinaryS
 			// Dummy catchblock because dequeue() is complaining.
 		}
 		return elementList.iterator();
-	}
+	} 
 
-	// In a BinarySearchTree, the left-most element is the smallest one. 
 	@Override
 	public T getMin() throws EmptyTreeException{
 		if(root == null)
@@ -159,7 +159,6 @@ public class LinkedBinarySearchTree<T extends Comparable<T>>  implements BinaryS
 	}
 
 
-	// In a BinarySearchTree, the right-most element is the largest one.
 	@Override
 	public T getMax() throws EmptyTreeException {
 		if(root == null)

@@ -709,14 +709,22 @@ public class BTree<T extends Comparable<T>> implements Tree<T> {
 		return list.iterator();
 	}
 
-	@Override
+	/**
+	 * Returns the minimum element of the tree.
+	 * @return The minimum element of the tree.
+	 * @throws EmptyTreeException If the tree is empty.
+	 */
 	public T getMin() throws EmptyTreeException {
 		if(isEmpty())
 			throw new EmptyTreeException("getMin(): tree is empty!");
 		return root.getMin();
 	}
-
-	@Override
+	
+	/**
+	 * Returns the maximum element of the tree.
+	 * @return The maximum element of the tree.
+	 * @throws EmptyTreeException If the tree is empty.
+	 */
 	public T getMax() throws EmptyTreeException {
 		if(isEmpty())
 			throw new EmptyTreeException("getMax(): tree is empty!");

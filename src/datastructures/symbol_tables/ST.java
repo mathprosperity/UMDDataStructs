@@ -45,7 +45,7 @@ public abstract class ST<Key, Value>{
 	public abstract Value get(Key key);
 	
 	/**
-	 * Delete the entry corresponding to the key
+	 * Delete the entry corresponding to the key. Soft-deletions are the default.
 	 * @param key the key that dictates which entry we should delete.
 	 */
 	public void delete(Key key){

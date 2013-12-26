@@ -14,7 +14,7 @@ import java.util.Iterator;
  * 
  * @since October 2013
  */
-public interface Tree<T extends Comparable<T>> extends Iterable<T> {
+public interface Tree<T> extends Iterable<T> {
 	
 	/**
 	 * Return the element at the root of the tree.
@@ -75,20 +75,6 @@ public interface Tree<T extends Comparable<T>> extends Iterable<T> {
 	 * @throws EmptyTreeException if the heap is empty.
 	 */
 	public Iterator<T> levelOrder() throws EmptyTreeException; 
-	
-	/**
-	 * Returns the minimum element of the tree.
-	 * @return The minimum element of the tree.
-	 * @throws EmptyTreeException If the tree is empty.
-	 */
-	public T getMin() throws EmptyTreeException;
-	
-	/**
-	 * Returns the maximum element of the tree.
-	 * @return The maximum element of the tree.
-	 * @throws EmptyTreeException If the tree is empty.
-	 */
-	public T getMax() throws EmptyTreeException;
 	
 	/**
 	 * Clears the tree of all its elements.

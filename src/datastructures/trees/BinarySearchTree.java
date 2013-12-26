@@ -41,4 +41,18 @@ public interface BinarySearchTree<T extends Comparable<T>> extends Tree<T>{
 	 * @return an int representing the height of the tree.
 	 */
 	public int height();
+	
+	/**
+	 * Returns the minimum element of the tree.
+	 * @return The minimum element of the tree.
+	 * @throws EmptyTreeException If the tree is empty.
+	 */
+	public T getMin() throws EmptyTreeException;
+	
+	/**
+	 * Returns the maximum element of the tree.
+	 * @return The maximum element of the tree.
+	 * @throws EmptyTreeException If the tree is empty.
+	 */
+	public T getMax() throws EmptyTreeException;
 }
