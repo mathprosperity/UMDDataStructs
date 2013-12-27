@@ -72,7 +72,7 @@ public class TrieTest {
 		String[] strings = {"she", "shell", "shells"};
 		for(String s : strings)
 			intTrie.insert(s, r.nextInt()); // Don't really care about the values right now
-		Iterable<String> it = intTrie.keysWithPrefix("she");
+		Iterable<CharSequence> it = intTrie.keysWithPrefix("she");
 		/* Every string in "it" should be contained in "strings". */
 		assertTrue(checkForAllOccurrences(it, strings));
 		intTrie.clear();
@@ -83,7 +83,7 @@ public class TrieTest {
 		String[] strings = {"she ", "surrounds", "seven", "shells", "shore", "she knows", "sea"};
 		for(String s : strings)
 			intTrie.insert(s, r.nextInt());
-		Iterable<String> it = intTrie.keysWithPrefix("s");
+		Iterable<CharSequence> it = intTrie.keysWithPrefix("s");
 		assertTrue(checkForAllOccurrences(it, strings));
 		it = intTrie.keysWithPrefix("she "); // Note the space!
 		String[] subArray1 = new String[2], subArray2 = new String[1];
@@ -96,10 +96,10 @@ public class TrieTest {
 	}
 
 	// Check whether all elements in the Iterable<String> iter are also in the String array provided.
-	private boolean checkForAllOccurrences(Iterable<String> iter, String[] array){
+	private boolean checkForAllOccurrences(Iterable<CharSequence> it, String[] array){
 		int numStrings = 0;
 		boolean oneNotFound = false;
-		for(String s : iter){
+		for(CharSequence s : it){
 			numStrings++;
 			for(String s2: array){
 				oneNotFound = true; // guilty until proven innocent
@@ -116,9 +116,9 @@ public class TrieTest {
 
 	// Same method as before, only not checking for length; in this method, the Iterable<String>
 	// need only be a subset of the array (not necessarily proper)
-	private boolean checkForOccurrences(Iterable<String> iter, String[] array){
+	private boolean checkForOccurrences(Iterable<CharSequence> iter, String[] array){
 		boolean oneNotFound = false;
-		for(String s : iter){
+		for(CharSequence s : iter){
 			for(String s2: array){
 				oneNotFound = true; // guilty until proven innocent
 				if(s.equals(s2)){ // found it
@@ -154,11 +154,11 @@ public class TrieTest {
 		intTrie.insert("dog", r.nextInt());
 		intTrie.insert("dogs", r.nextInt());
 		intTrie.insert("dog leash", r.nextInt());
-		Iterator<String> matches = intTrie.keysThatMatch("dog").iterator();
+		Iterator<CharSequence> matches = intTrie.keysThatMatch("dog").iterator();
 		assertTrue(matches.hasNext());
 		assertEquals("dog", matches.next());
 		assertFalse(matches.hasNext());
-		Iterator<String> noMatches = intTrie.keysThatMatch("dawg").iterator();
+		Iterator<CharSequence> noMatches = intTrie.keysThatMatch("dawg").iterator();
 		assertFalse(noMatches.hasNext());
 		intTrie.clear();
 	}
@@ -168,7 +168,7 @@ public class TrieTest {
 		String[] aces = new String[]{"aceH", "aceD", "aceC", "aceS"};
 		for(String s : aces)
 			intTrie.insert(s, r.nextInt());
-		Iterable<String> it = intTrie.keysThatMatch("ace."); // Should match all
+		Iterable<CharSequence> it = intTrie.keysThatMatch("ace."); // Should match all
 		assertTrue(checkForAllOccurrences(it, aces));
 		intTrie.clear();
 	}
@@ -228,7 +228,6 @@ public class TrieTest {
 				}
 			}
 		}
-		System.out.println(intTrie.size());
 		assertTrue(intTrie.isEmpty());
 		intTrie.clear();
 	}

@@ -92,7 +92,7 @@ public class Trie<T> implements Tree<T>{
 		 * @param prefix The String containing the prefix sought.
 		 * @param queue The queue that will collect all strings found.
 		 */
-		void collect(String prefix, Queue<String> queue){
+		void collect(String prefix, Queue<CharSequence> queue){
 			if(data != null)
 				queue.enqueue(prefix); // Only add this as a valid String if the value is non-null, signifying a contained string.
 			for(char c = 0; c < children.length; c++)
@@ -106,7 +106,7 @@ public class Trie<T> implements Tree<T>{
 		 * @param pattern The pattern we are seeking to match. The period character ('.') is matched with any character.
 		 * @param queue The queue that collects the Strings that we will match.
 		 */
-		void collect(String builtString, String pattern, Queue<String> queue){
+		void collect(String builtString, String pattern, Queue<CharSequence> queue){
 			if(builtString.length() == pattern.length()){ // exhausted pattern
 				if(data != null)
 					queue.enqueue(builtString);
@@ -133,8 +133,11 @@ public class Trie<T> implements Tree<T>{
 		 * Inserts <tt>element</tt> into the node indexed by <tt>index</tt>
 		 * @param index A {@link: CharSequence} that indexes into the trie.
 		 * @param element The element to insert in the trie.
+		 * @return A reference to the data element inside the node before insertion or null
+		 * if (a) The node did not pre-exist or (b) The node existed, but was not a "terminal"
+		 * node representing a stored string in the trie.
 		 */
-		void insert(CharSequence index, T element, int currCharIndex){
+		T insert(CharSequence index, T element, int currCharIndex){
 			/* This method will exhaustively search all the characters in "index". In the process,
 			 * it might end up allocating new TrieNodes. When we reach the end of the index, either
 			 * we find ourselves in a TrieNode which we freshly allocated (therefore it's data reference
@@ -142,15 +145,18 @@ public class Trie<T> implements Tree<T>{
 			 * make the data reference point to element (that is, in the latter case we over-write
 			 * the data element).
 			 */
-			if(currCharIndex == index.length())
+			if(currCharIndex == index.length()){
+				T retVal = data;
 				data = element;
+				return retVal;
+			}
 			else{
 				int nextChar = index.charAt(currCharIndex);
 				if(nextChar < 0 || nextChar >= children.length)
 					throw new CharacterNotInAlphabetException("TrieNode.insert(CharSequence, T, int): character " + nextChar + " is not contained in the alphabet.");
 				if(children[nextChar] == null) // If the node to recurse to is null, allocate it.
 					children[nextChar] = new TrieNode();
-				((TrieNode) children[nextChar]).insert(index, element, currCharIndex + 1);
+				return ((TrieNode) children[nextChar]).insert(index, element, currCharIndex + 1);
 			}
 		}
 
@@ -317,22 +323,26 @@ public class Trie<T> implements Tree<T>{
 	public void delete(CharSequence index){
 		if(!isEmpty()){
 			TrieNode node = root.find(index, 0);
-			if(node != null)
-				node.data = null; // Element no longer in trie.
-			if(size > 0) // necessary, because in a trie, it's possible to delete an index arbitrarily many times
-				size--;
+			if(node != null){ // Valid index
+				// If the node contained something, decrease the size of the trie.
+				if(node.data != null && size > 0) {
+					size--;
+					node.data = null;
+				}
+			}
 		}
 	}
 
 	public void insert(CharSequence index, T value){
 		if(isEmpty())
 			root = new TrieNode();
-		root.insert(index, value, 0); // In the worst case, allocates index.length() - many nodes.		
-		size++;
+		T valBefore = root.insert(index, value, 0); // In the worst case, allocates index.length() - many nodes.		
+		if(valBefore == null && value != null)
+			size++;
 	}
 
-	public Iterable<String> keysWithPrefix(CharSequence prefix){
-		Queue<String> queue = new LinkedQueue<String>();
+	public Iterable<CharSequence> keysWithPrefix(CharSequence prefix){
+		Queue<CharSequence> queue = new LinkedQueue<CharSequence>();
 		if(!isEmpty() && prefix != null){
 			TrieNode nodeWithPrefix = root.find(prefix, 0);
 			if(nodeWithPrefix == null)
@@ -357,14 +367,14 @@ public class Trie<T> implements Tree<T>{
 	 * 
 	 * @return An Iterable<String> containing all matches of "pattern" that we found.
 	 */
-	public Iterable<String> keysThatMatch(CharSequence pattern){
+	public Iterable<CharSequence> keysThatMatch(CharSequence pattern){
 		/* Because the period is interpreted in the aforementioned special manner,
 		 * we cannot use TrieNode.find to find the node which matches "string" and work
 		 * recursively from there. Instead, we will need to scan the pattern String
 		 * character - by - character again. This is what the 3-argument version of
 		 * TrieNode.collect() does.
 		 */
-		Queue<String> queue = new LinkedQueue<String>();
+		Queue<CharSequence> queue = new LinkedQueue<CharSequence>();
 		if(!isEmpty())
 			root.collect("", pattern.toString(), queue);
 		return queue;
